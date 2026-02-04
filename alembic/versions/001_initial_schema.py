@@ -92,7 +92,11 @@ def upgrade() -> None:
     )
     op.create_index('idx_fli_statement', 'financial_line_items', ['statement_id'])
     op.create_index('idx_fli_field', 'financial_line_items', ['field_name'])
-    op.create_index('idx_fli_lookup', 'financial_line_items', ['statement_id', 'field_name'])
+    # Covering index for fast lookups including field_value
+    op.execute(
+        "CREATE INDEX idx_fli_lookup ON financial_line_items (statement_id, field_name) "
+        "INCLUDE (field_value)"
+    )
 
     # Raw filings table
     op.create_table(
@@ -225,7 +229,11 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index('idx_qc_company', 'quality_checks', ['company_id', 'check_date'])
-    op.create_index('idx_qc_unacceptable', 'quality_checks', ['is_acceptable'])
+    # Partial index for quickly finding unacceptable quality checks
+    op.execute(
+        "CREATE INDEX idx_qc_unacceptable ON quality_checks (company_id, field_name) "
+        "WHERE NOT is_acceptable"
+    )
 
     # Scrape log table
     op.create_table(
